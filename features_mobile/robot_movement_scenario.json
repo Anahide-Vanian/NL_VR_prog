@@ -1,0 +1,42 @@
+{
+  "scenario_data": {
+    "feature": "Robot Movement",
+    "description": "Move Robot \"Hi\" along the path starting from current state (RB): go to HOME, then P1, P2, P3, and RB (interpreting 'R' as RB)",
+    "scenarios": [
+      {
+        "name": "Robot path: RB -> HOME -> P1 -> P2 -> P3 -> RB",
+        "steps": [
+          {
+            "type": "given",
+            "text": "the property position of the Robot \"Hi\" is RB"
+          },
+          {
+            "type": "when",
+            "text": "the Robot \"Hi\" moves to position HOME"
+          },
+          {
+            "type": "and",
+            "text": "the Robot \"Hi\" moves to position P1"
+          },
+          {
+            "type": "and",
+            "text": "the Robot \"Hi\" moves to position P2"
+          },
+          {
+            "type": "and",
+            "text": "the Robot \"Hi\" moves to position P3"
+          },
+          {
+            "type": "and",
+            "text": "the Robot \"Hi\" moves to position RB"
+          },
+          {
+            "type": "then",
+            "text": "the property position of the Robot \"Hi\" is RB"
+          }
+        ]
+      }
+    ]
+  },
+  "original_prompt": "THe robot is at HOME at the beginning. THen  move Robot \"Hi\" from HOME to P1, then to P2, P3, and R"
+}

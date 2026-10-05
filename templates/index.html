@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anah DSL - Behave Feature Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .flash-messages { margin-bottom: 20px; }
+        
+        /* Speech-to-text styles */
+        .hidden {
+            display: none;
+        }
+        
+        .btn.start {
+            background-color: #198754;
+            color: white;
+        }
+        
+        .btn.stop {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .speech-container {
+            margin-bottom: 1rem;
+        }
+        
+        .placeholder {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Natural Language Robot Control</h1>
+
+
+
+        <!-- Image section with object placement controls -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="row">
+                    <!-- Left side: Object placement inputs -->
+                    <div class="col-md-4">
+                        <h6 class="mb-3">Give a name to the:</h6>
+
+                        <div class="mb-2 d-flex align-items-center">
+                            <span class="me-2" style="min-width: 100px;">Robot:</span>
+                            <input type="text" class="form-control object-input" id="robot" placeholder="Name" style="font-style: italic; color: #6c757d;">
+                        </div>
+
+                        <div class="mb-2 d-flex align-items-center">
+                            <span class="me-2" style="min-width: 100px;">Object at P1:</span>
+                            <input type="text" class="form-control object-input" id="object-p1" placeholder="Name" style="font-style: italic; color: #6c757d;">
+                        </div>
+
+                        <div class="mb-2 d-flex align-items-center">
+                            <span class="me-2" style="min-width: 100px;">Object at P2:</span>
+                            <input type="text" class="form-control object-input" id="object-p2" placeholder="Name" style="font-style: italic; color: #6c757d;">
+                        </div>
+
+                        <div class="mb-3 d-flex align-items-center">
+                            <span class="me-2" style="min-width: 100px;">Object at P3:</span>
+                            <input type="text" class="form-control object-input" id="object-p3" placeholder="Name" style="font-style: italic; color: #6c757d;">
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary w-100" id="validate-btn">Validate</button>
+                    </div>
+
+                    <!-- Right side: Workstation image -->
+                    <div class="col-md-8 text-center">
+                        <img src="{{ url_for('static', filename='Picture/ur5_workstation.png') }}"
+                             alt="UR5 Workstation"
+                             class="img-fluid"
+                             style="max-width: 85%; height: auto; border-radius: 8px;">
+                        <p class="text-muted mt-2 small">Robot workstation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        
+
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+
+
+
+        <div class="card">
+            <div class="card-header" style="background-color: #e6f2ff;">
+                <h2 class="card-title h5 mb-0">User input</h2>
+            </div>
+            <div class="card-body">
+                <form id="generate-form" action="{{ url_for('generate') }}" method="post">
+                    <div class="mb-3">
+                        <!--<label for="prompt" class="form-label">User prompt</label>-->
+                        <textarea class="form-control" id="prompt" name="prompt" rows="5" required placeholder="Tell the robot what to do..."></textarea>
+                        
+                        <!-- Speech-to-text section -->
+                        <!--
+                        <div class="speech-container mt-2">
+                            <button type="button" id="recordBtn" class="btn start">Hold to speak</button>
+                            <div id="status" class="small text-muted mt-1"></div>
+                            <div id="languageIndicator" class="small text-muted"></div>
+                        </div>-->
+                    </div>
+                    
+                    <!--
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            Please write a description of the operation the robot should perform by mentioning the minimum necessary information such as locations, object and entity names.
+                        </div>
+                    </div>-->
+
+                    <button id="reset-btn" class="btn btn-warning">Reset scene</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+
+                </form>
+            </div>
+        </div>
+
+        
+
+        {% if raw_response %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title h5 mb-0">Response from the system</h3>
+            </div>
+            <div class="card-body">
+                <pre>{{ raw_response }}</pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+
+
+
+    <!--Loading break
+    <div id="loading-break" style="display:none; position: fixed; top:0; left:0; width: 50%; height: 50%; background-color: rgba(0,0,0,0.3); z-index:9999; text-align:center;">
+        <div style= "color: white; font-size:24px;">
+            <div style="margin-bottom:20px"></div>
+            <div>Loading...</div>
+            <div style="font-size: 16px;"> Please wait, the system is thinking...></div>
+        </div>
+    </div>
+
+    Loading break
+    <div id="loading-break" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background-color: white; padding: 40px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+            <div style="color: #333; font-size: 24px; font-weight: bold;">Loading...</div>
+            <div style="color: #666; font-size: 16px; margin-top: 10px;">Please wait, the system is thinking...</div>
+        </div>
+    </div>-->
+
+    <!--Loading break-->
+    <div id="loading-break" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 40px; border-radius: 10px; text-align: center; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+            <div style="color: #333; font-size: 24px; font-weight: bold;">Loading...</div>
+            <div style="color: #666; font-size: 16px; margin-top: 10px;">Please wait, the system is thinking...</div>
+        </div>
+    </div>
+
+
+
+
+    <!-- Speech Transcriber JavaScript -->
+    <script>
+        /**
+         * SpeechTranscriber - A reusable class for speech-to-text functionality
+         */
+        class SpeechTranscriber {
+            /**
+             * Create a new SpeechTranscriber instance
+             * @param {Object} options - Configuration options
+             * @param {HTMLElement} options.recordButton - Button element for hold-to-speak
+             * @param {HTMLElement} options.recordingIndicator - Element to show recording status
+             * @param {HTMLElement} options.transcriptionResult - Element to display transcription results
+             * @param {HTMLElement} options.languageIndicator - Element to display detected language
+             * @param {HTMLElement} options.statusElement - Element to display status messages
+             * @param {string} options.transcribeEndpoint - Server endpoint for transcription (default: '/transcribe')
+             * @param {Object} options.languageNames - Mapping of language codes to full names
+             */
+            constructor(options) {
+                // Required elements
+                this.recordBtn = options.recordButton;
+                this.recordingIndicator = options.recordingIndicator;
+                this.transcriptionResult = options.transcriptionResult;
+                this.languageIndicator = options.languageIndicator;
+                this.status = options.statusElement;
+                
+                // Optional settings with defaults
+                this.transcribeEndpoint = options.transcribeEndpoint || '/transcribe';
+                this.languageNames = options.languageNames || {
+                    'en': 'English',
+                    'es': 'Spanish',
+                    'fr': 'French',
+                    'de': 'German',
+                    'it': 'Italian',
+                    'pt': 'Portuguese',
+                    'nl': 'Dutch',
+                    'ru': 'Russian',
+                    'ja': 'Japanese',
+                    'zh': 'Chinese',
+                    'ar': 'Arabic',
+                    'hi': 'Hindi',
+                    'ko': 'Korean',
+                    'pl': 'Polish',
+                    'tr': 'Turkish',
+                    'uk': 'Ukrainian',
+                    'vi': 'Vietnamese',
+                    'sv': 'Swedish',
+                    'th': 'Thai',
+                    'cs': 'Czech',
+                    'da': 'Danish',
+                    'fi': 'Finnish',
+                    'el': 'Greek',
+                    'he': 'Hebrew',
+                    'hu': 'Hungarian',
+                    'id': 'Indonesian',
+                    'ms': 'Malay',
+                    'no': 'Norwegian',
+                    'ro': 'Romanian',
+                    'sk': 'Slovak',
+                    'bg': 'Bulgarian',
+                    'hr': 'Croatian',
+                    'lt': 'Lithuanian',
+                    'lv': 'Latvian',
+                    'sl': 'Slovenian',
+                    'et': 'Estonian',
+                    'is': 'Icelandic'
+                };
+                
+                // Internal state
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.isRecording = false;
+                
+                // Event callback handlers
+                this.onTranscriptionComplete = options.onTranscriptionComplete || null;
+                this.onTranscriptionError = options.onTranscriptionError || null;
+                this.onRecordingStart = options.onRecordingStart || null;
+                this.onRecordingStop = options.onRecordingStop || null;
+                
+                // Check browser support
+                if (!navigator.mediaDevices || !MediaRecorder) {
+                    this.setStatus('Your browser does not support audio recording.');
+                    this.recordBtn.disabled = true;
+                    return;
+                }
+                
+                // Initialize event listeners
+                this.initEventListeners();
+            }
+            
+            /**
+             * Initialize event listeners for the record button
+             */
+            initEventListeners() {
+                this.recordBtn.addEventListener('mousedown', this.startRecording.bind(this));
+                this.recordBtn.addEventListener('touchstart', this.startRecording.bind(this));
+                this.recordBtn.addEventListener('mouseup', this.stopRecording.bind(this));
+                this.recordBtn.addEventListener('mouseleave', this.stopRecording.bind(this));
+                this.recordBtn.addEventListener('touchend', this.stopRecording.bind(this));
+            }
+            
+            /**
+             * Set the status message
+             * @param {string} message - The status message to display
+             */
+            setStatus(message) {
+                if (this.status) {
+                    this.status.textContent = message;
+                }
+            }
+            
+            /**
+             * Start recording audio
+             * @async
+             */
+            async startRecording() {
+                if (this.isRecording) return;
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    // Configure media recorder
+                    this.mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm'
+                    });
+                    
+                    this.mediaRecorder.addEventListener('dataavailable', event => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                        }
+                    });
+                    
+                    this.mediaRecorder.addEventListener('stop', this.handleRecordingStop.bind(this));
+                    
+                    // Start recording
+                    this.audioChunks = [];
+                    this.mediaRecorder.start();
+                    this.isRecording = true;
+                    
+                    // Update UI
+                    this.recordBtn.classList.remove('start');
+                    this.recordBtn.classList.add('stop');
+                    
+                    this.setStatus('Recording in progress...');
+                    
+                    // Call the onRecordingStart callback if provided
+                    if (this.onRecordingStart && typeof this.onRecordingStart === 'function') {
+                        this.onRecordingStart();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    this.setStatus(`Could not start recording: ${error.message}`);
+                    
+                    if (this.onTranscriptionError && typeof this.onTranscriptionError === 'function') {
+                        this.onTranscriptionError(error);
+                    }
+                }
+            }
+            
+            /**
+             * Stop recording audio
+             */
+            stopRecording() {
+                if (!this.isRecording) return;
+                
+                if (this.mediaRecorder) {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    
+                    // Update UI
+                    this.recordBtn.classList.remove('stop');
+                    this.recordBtn.classList.add('start');
+                    
+                    this.setStatus('Processing audio...');
+                    
+                    // Stop all audio tracks
+                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    
+                    // Call the onRecordingStop callback if provided
+                    if (this.onRecordingStop && typeof this.onRecordingStop === 'function') {
+                        this.onRecordingStop();
+                    }
+                }
+            }
+            
+            /**
+             * Handle recording stop event
+             * @async
+             */
+            async handleRecordingStop() {
+                try {
+                    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                    
+                    // If recording is too short
+                    if (audioBlob.size < 1000) {
+                        this.setStatus('Recording too short. Please try again.');
+                        
+                        if (this.transcriptionResult) {
+                            this.transcriptionResult.innerHTML = '<p class="placeholder">Your transcription will appear here...</p>';
+                        }
+                        
+                        return;
+                    }
+                    
+                    // Create FormData and append audio file
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+                    
+                    // Send to server for transcription
+                    this.setStatus('Transcribing audio...');
+                    
+                    const response = await fetch(this.transcribeEndpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Transcription failed');
+                    }
+                    
+                    const result = await response.json();
+                    
+                    // Display results
+                    if (this.languageIndicator && result.language) {
+                        const detectedLanguage = this.languageNames[result.language] || result.language;
+                        this.languageIndicator.textContent = `Detected language: ${detectedLanguage}`;
+                    }
+                    
+                    // Update the prompt textarea with the transcription
+                    const promptTextarea = document.getElementById('prompt');
+                    if (promptTextarea && result.text) {
+                        promptTextarea.value = result.text;
+                    }
+                    
+                    this.setStatus('Transcription complete.');
+                    
+                    // Call the onTranscriptionComplete callback if provided
+                    if (this.onTranscriptionComplete && typeof this.onTranscriptionComplete === 'function') {
+                        this.onTranscriptionComplete(result);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    this.setStatus(`Error: ${error.message}`);
+                    
+                    if (this.onTranscriptionError && typeof this.onTranscriptionError === 'function') {
+                        this.onTranscriptionError(error);
+                    }
+                }
+            }
+            
+            /**
+             * Clean up resources used by the transcriber
+             */
+            destroy() {
+                // Remove event listeners
+                this.recordBtn.removeEventListener('mousedown', this.startRecording.bind(this));
+                this.recordBtn.removeEventListener('touchstart', this.startRecording.bind(this));
+                this.recordBtn.removeEventListener('mouseup', this.stopRecording.bind(this));
+                this.recordBtn.removeEventListener('mouseleave', this.stopRecording.bind(this));
+                this.recordBtn.removeEventListener('touchend', this.stopRecording.bind(this));
+                
+                // Stop recording if in progress
+                if (this.isRecording && this.mediaRecorder) {
+                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    this.isRecording = false;
+                }
+            }
+        }
+
+        
+
+        // Initialize the transcriber when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+
+
+            //SHow loading text when form is submitted
+            const generateForm = document.getElementById('generate-form');
+            const loadingBreak= document.getElementById('loading-break');
+
+            generateForm.addEventListener('submit', function() {loadingBreak.style.display ='block';});
+
+            // Populate saved entity names from server
+            const entityNames = {{ entity_names | tojson }};
+
+            // Populate input fields with saved values
+            const robotInput = document.getElementById('robot');
+            const objP1Input = document.getElementById('object-p1');
+            const objP2Input = document.getElementById('object-p2');
+            const objP3Input = document.getElementById('object-p3');
+
+            if (entityNames.Robot) {
+                robotInput.value = entityNames.Robot;
+                robotInput.style.color = '#212529';
+                robotInput.style.fontStyle = 'normal';
+            }
+            if (entityNames.OBJ_P1) {
+                objP1Input.value = entityNames.OBJ_P1;
+                objP1Input.style.color = '#212529';
+                objP1Input.style.fontStyle = 'normal';
+            }
+            if (entityNames.OBJ_P2) {
+                objP2Input.value = entityNames.OBJ_P2;
+                objP2Input.style.color = '#212529';
+                objP2Input.style.fontStyle = 'normal';
+            }
+            if (entityNames.OBJ_P3) {
+                objP3Input.value = entityNames.OBJ_P3;
+                objP3Input.style.color = '#212529';
+                objP3Input.style.fontStyle = 'normal';
+            }
+
+
+            /* Commenting out speech related content   
+            // Get DOM elements
+            const recordBtn = document.getElementById('recordBtn');
+            const languageIndicator = document.getElementById('languageIndicator');
+            const status = document.getElementById('status');
+
+            // Create a new transcriber instance
+            const transcriber = new SpeechTranscriber({
+                recordButton: recordBtn,
+                languageIndicator: languageIndicator,
+                statusElement: status,
+                // Optional callback example
+                onTranscriptionComplete: (result) => {
+                    console.log('Transcription result:', result);
+                    // You can do additional processing here
+                }
+            });*/
+
+
+
+            //Handle reset button
+            const resetBtn = document.getElementById('reset-btn');
+            resetBtn.addEventListener('click', async() => {
+                if(confirm("Are you sure you want to reset the scene ? Robot and objects will be reset.")){
+                    resetBtn.disabled = true; //can't press it will processing
+                    resetBtn.textContent = "Resetting ...";
+                    try{
+                        const response = await fetch('/reset_scene', {method: 'POST', headers: {'Content-Type': 'application/json'}});
+                        const result = await response.json();
+
+                        if(result.success){
+                            resetBtn.classList.remove("btn-warning");
+                            resetBtn.classList.add("btn-success");
+                            resetBtn.textContent = "Scene reset :)";
+                            setTimeout(() => { //Wait some time before reintializing the button
+                                resetBtn.classList.remove("btn-success");
+                                resetBtn.classList.add("btn-warning");
+                                resetBtn.textContent = "Reset scene";
+                                resetBtn.disabled = false; //We enable it 
+                            }, 2000);
+                        }
+                        else{
+                            alert('Failed to reset scene: ' + result.message);
+                            resetBtn.textContent = 'Reset scene';// We enable it
+                            resetBtn.disabled = false;
+                        }
+
+                    }
+                    catch(error){
+                        alert("Error" + error);
+                        resetBtn.textContent = 'Reset scene';// We enable it
+                        resetBtn.disabled = false;
+                    }
+
+                }
+
+            });
+
+
+            // Handle validate button
+            const validateBtn = document.getElementById('validate-btn');
+            const objectInputs = document.querySelectorAll('.object-input');
+            let isValidated = false;
+
+            // Check if saved values match current inputs - if yes, mark as validated
+            if (entityNames.Robot || entityNames.OBJ_P1 || entityNames.OBJ_P2 || entityNames.OBJ_P3) {
+                const currentValues = {
+                    Robot: robotInput.value,
+                    OBJ_P1: objP1Input.value,
+                    OBJ_P2: objP2Input.value,
+                    OBJ_P3: objP3Input.value
+                };
+
+                const allMatch = currentValues.Robot === entityNames.Robot &&
+                                 currentValues.OBJ_P1 === entityNames.OBJ_P1 &&
+                                 currentValues.OBJ_P2 === entityNames.OBJ_P2 &&
+                                 currentValues.OBJ_P3 === entityNames.OBJ_P3;
+
+                if (allMatch && (entityNames.Robot || entityNames.OBJ_P1 || entityNames.OBJ_P2 || entityNames.OBJ_P3)) {
+                    validateBtn.classList.remove('btn-outline-primary');
+                    validateBtn.classList.add('btn-success');
+                    validateBtn.textContent = 'Validated ✓';
+                    isValidated = true;
+                }
+            }
+
+            validateBtn.addEventListener('click', async () => {
+                console.log('VALIDATE BUTTON CLICKED!');
+                console.log('isValidated:', isValidated);
+
+                if (!isValidated) {
+                    console.log('Entering save mode...');
+                    // Collect the object data (use empty string instead of 'None' for empty fields)
+                    const objectData = {
+                        Robot: document.getElementById('robot').value.trim(),
+                        OBJ_P1: document.getElementById('object-p1').value.trim(),
+                        OBJ_P2: document.getElementById('object-p2').value.trim(),
+                        OBJ_P3: document.getElementById('object-p3').value.trim()
+                    };
+                    console.log('Object data:', objectData);
+
+                    try {
+                        console.log('Sending request to /save_objects...');
+                        // Send data to server
+                        const response = await fetch('/save_objects', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(objectData)
+                        });
+
+                        console.log('Response status:', response.status, response.ok);
+                        const result = await response.json();
+                        console.log('Result:', result);
+
+                        if (response.ok) {
+                            console.log('SUCCESS! Turning button green...');
+                            // Change to success state
+                            validateBtn.classList.remove('btn-outline-primary');
+                            validateBtn.classList.add('btn-success');
+                            validateBtn.textContent = 'Validated ✓';
+                            isValidated = true;
+
+                            console.log('Object placement saved:', result.data);
+                        } else {
+                            console.log('ERROR: response not OK');
+                            alert('Error saving object placement: ' + result.error);
+                        }
+                    } catch (error) {
+                        console.error('EXCEPTION caught:', error);
+                        alert('Failed to save object placement');
+                    }
+                } else {
+                    console.log('Resetting to unvalidated state...');
+                    // Reset to original state
+                    validateBtn.classList.remove('btn-success');
+                    validateBtn.classList.add('btn-outline-primary');
+                    validateBtn.textContent = 'Validate';
+                    isValidated = false;
+                }
+            });
+
+            // Reset validate button when any input changes
+            objectInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    if (isValidated) {
+                        validateBtn.classList.remove('btn-success');
+                        validateBtn.classList.add('btn-outline-primary');
+                        validateBtn.textContent = 'Validate';
+                        isValidated = false;
+                    }
+                    // Change text color to normal when user types
+                    if (input.value) {
+                        input.style.color = '#212529';
+                        input.style.fontStyle = 'normal';
+                    } else {
+                        input.style.color = '#6c757d';
+                        input.style.fontStyle = 'italic';
+                    }
+                });
+            });
+
+        });
+    </script>
+</body>
+</html>

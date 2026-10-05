@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control - Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>/*HOw it looks*/
+        /*  Entire layout */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /*  Left chat panel */
+        .chat-panel {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #dee2e6;
+            background: #f0f2f5;
+        }
+
+        .chat-header {
+            padding: 25px 30px;
+            background: #084298;/*#0a58ca;*/
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .chat-header h5 { margin: 0; font-size: 22px; }
+
+        .entity-bar {
+            background: #d0ebff;
+            padding: 10px 16px;
+            font-size: 18px;
+            color: #444;
+            border-bottom: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-input-area {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .chat-input-area textarea {
+            flex: 1;
+            resize: none;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            padding: 10px 16px;
+            outline: none;
+            min-height: 44px;
+            max-height: 120px;
+            font-size: 16px;
+            line-height: 1.4;
+            overflow-y: auto;
+        }
+
+        .chat-input-area textarea:focus { border-color: #084298; }
+
+        /* The message bubbles */
+        .message-wrapper { display: flex; flex-direction: column; }
+        .message-wrapper.user { align-items: flex-end; }
+        .message-wrapper.assistant { align-items: flex-start; }
+        .message-wrapper.system-event { align-items: center; }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 16px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.user {
+            background: #084298;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-bubble.assistant {
+            background: white;
+            color: #333;
+            border: 1px solid #dee2e6;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-bubble.system-event {
+            background: #f0f0f0;
+            color: #888;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+        }
+
+        .message-time {
+            font-size: 14px;
+            color: #888;
+            margin-top: 3px;
+            padding: 0 4px;
+        }
+
+        /* When LLM think, typing indicator */
+        .typing-dots { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
+        .typing-dots span {
+            width: 8px; height: 8px;
+            background: #aaa;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /*  Right, scemnario panel */
+        .scenario-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .scenario-header {
+            padding: 25px 16px;
+            background: #343a40;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .scenario-header h5 { margin: 0; font-size: 22px; }
+
+        .scenario-content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            min-height: 0;
+        }
+
+        #scenario-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #aaa;
+            font-size: 26px;
+        }
+
+        #scenario-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+
+        #scenario-pre {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            min-height: 150px;
+        }
+
+        #scenario-edit-textarea {
+            display: none;
+            width: 100%;
+            background: #f8f9fa;
+            border: 2px solid #084298;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 200px;
+            resize: vertical;
+            outline: none;
+        }
+
+        /*  When running, Behave console */
+        .behave-console {
+            display: none;
+            flex-direction: column;
+            height: 38%;
+            border-top: 2px solid #343a40;
+            flex-shrink: 0;
+        }
+
+        .console-header {
+            padding: 8px 16px;
+            background: #1e1e1e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        #behave-output {
+            flex: 1;
+            overflow-y: auto;
+            background: #d4d4d4;
+            color: #1e1e1e;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+    </style>
+</head>
+<body><!--What exists-->
+<div class="app-container">
+
+    <!-- ---------Left side: Chat Panel-->
+
+    <div class="chat-panel">
+
+        <div class="chat-header">
+            <h5>Mobile Robot Programming Chat</h5>
+        </div>
+
+        <div class="chat-messages" id="chat-messages"></div>
+
+        <div class="chat-input-area">
+            <textarea id="chat-input" placeholder="Tell the robot what to do..." rows="1"></textarea>
+            <button class="btn" id="send-btn" style="border-radius: 50%; width: 44px; height: 44px; padding: 0; background-color: #084298; color: white">&#10148;</button>
+            <button class="btn" id="record-btn" style="border-radius: 50%; width: 44px; height: 44px; padding: 0; background-color: #084298; color: white" title="Start voice recording"><i class="bi bi-mic-fill"></i></button>          
+        </div>
+
+    </div>
+
+    <!-- ---------Rigth side: Chat Panel-->
+    <div class="scenario-panel">
+
+        <div class="scenario-header">
+            <h5>Generated Scenarios</h5>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="run-status" class="badge bg-secondary" style="display:none;">Ready</span>
+                <button class="btn btn-lg btn-outline-light" id="edit-btn" disabled>Edit</button>
+                <button class="btn btn-lg btn-warning" id="save-edit-btn" style="display:none;">Save Edit</button>
+                <button class="btn btn-lg btn-secondary" id="cancel-edit-btn" style="display:none;">Cancel</button>
+                <button class="btn btn-lg btn-success" id="run-btn" disabled>&#9654; Run</button>
+            </div>
+        </div>
+
+        <div class="scenario-content-area">
+            <div id="scenario-placeholder">
+                <p>Send a message to generate your first scenarios</p>
+            </div>
+            <pre id="scenario-pre" style="display:none;"></pre>
+            <textarea id="scenario-edit-textarea"></textarea>
+        </div>
+
+        <div class="behave-console" id="behave-console">
+            <div class="console-header">
+                <span>Execution Console</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn btn-sm btn-danger" id="stop-btn">Stop</button>
+                    <span id="console-status" class="badge bg-warning">Running...</span>
+                </div>
+            </div>
+            <pre id="behave-output"></pre>
+        </div>
+
+    </div>
+</div>
+
+<script>
+//How it does
+
+// 
+//  ------- STATE
+
+let currentScenarioId      = localStorage.getItem('saduko_scenario_id');
+let currentOutputFile      = 'features_mobile/robot_movement.feature';
+let currentScenarioContent = localStorage.getItem('saduko_scenario_content');
+let isEditing = false;
+let behaveEventSource = null;
+
+// ----
+//  DOM REFERENCES
+// ----
+const chatMessages        = document.getElementById('chat-messages');
+const chatInput           = document.getElementById('chat-input');
+const sendBtn             = document.getElementById('send-btn');
+const scenarioPlaceholder = document.getElementById('scenario-placeholder');
+const scenarioPre         = document.getElementById('scenario-pre');
+const scenarioEditTA      = document.getElementById('scenario-edit-textarea');
+const editBtn             = document.getElementById('edit-btn');
+const saveEditBtn         = document.getElementById('save-edit-btn');
+const cancelEditBtn       = document.getElementById('cancel-edit-btn');
+const runBtn              = document.getElementById('run-btn');
+const runStatus           = document.getElementById('run-status');
+const behaveConsole       = document.getElementById('behave-console');
+const behaveOutput        = document.getElementById('behave-output');
+const stopBtn             = document.getElementById('stop-btn');
+const consoleStatus       = document.getElementById('console-status');
+//For micro :
+const recordBtn = document.getElementById('record-btn');                                                                                                                              
+let mediaRecorder = null;                                                                                                                                                           
+let audioChunks = [];                                                                                                                                                                 
+let isRecording = false; 
+
+// ----
+//  When page loads
+// ----
+document.addEventListener('DOMContentLoaded', () => { //Document OBject Model built the tree 
+
+
+    //Restore last scenario from localStorage (survives page refresh)
+    if (currentScenarioContent) {
+        showScenario(currentScenarioContent);
+    }
+
+    // Restore chat history from server
+    fetch('/chat/history')
+        .then(r => r.json())
+        .then(data => {
+            data.messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    addBubble('user', msg.content);
+                } else if (msg.role === 'assistant') {
+                    try {
+                        const parsed = JSON.parse(msg.content);
+                        addBubble('assistant', parsed.chat_reply || 'Here are your scenarios!');
+                    } catch {
+                        addBubble('assistant', msg.content);
+                    }
+                }
+            });
+        });
+});
+
+// ----
+//  SEND MESSAGE
+// ----
+async function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    chatInput.value = '';
+    autoResize(chatInput);
+    addBubble('user', text);
+
+    const typingEl = addTypingIndicator();
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+    try {
+        const response = await fetch('/chat/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await response.json();
+        typingEl.remove();
+
+        if (!response.ok) {
+            addBubble('assistant', 'Error: ' + (data.error || `HTTP ${response.status}`));
+            return;
+        }
+
+        addBubble('assistant', data.chat_reply || 'Here are your scenarios!');
+
+        if (data.scenario_content) {
+            showScenario(data.scenario_content);
+            currentScenarioId      = data.scenario_id;
+            currentOutputFile      = data.output_file;
+            currentScenarioContent = data.scenario_content;
+            saveState();
+        }
+
+    } catch (error) {
+        typingEl.remove();
+        addBubble('assistant', 'Error: ' + error.message);
+    } finally {
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+    }
+}
+
+//If button is pressed
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+
+//If micro is pressed
+recordBtn.addEventListener('click', async () => {
+    try {                                                                                                                                                                             
+        if (!isRecording) {                                                                                                                                                           
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];                                                                                                                                                         
+            mediaRecorder = new MediaRecorder(stream);                                                                                                                              
+                                                                                                                                                                                    
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunks.push(event.data);                                                                                                                
+            };                                                                                                                                                                      
+
+            mediaRecorder.onstop = async () => {                                                                                                                                      
+                try {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });                                                                                                  
+                    const formData = new FormData();                                                                                                                                
+                    formData.append('audio', audioBlob, 'recording.webm');                                                                                                            
+
+                    sendBtn.disabled = true;                                                                                                                                          
+                    recordBtn.disabled = true;                                                                                                                                      
+                                            
+                    const response = await fetch('/transcribe', { method: 'POST', body: formData });                                                                                  
+                    const data = await response.json();                                             
+                    if (!response.ok) throw new Error(data.error || 'Transcription failed');                                                                                          
+                                                                                                                                                                                    
+                    chatInput.value = data.text;                                                                                                                                      
+                    autoResize(chatInput);      
+                    chatInput.focus();                                                                                                                                                
+                } catch (error) {                                                                                                                                                   
+                    addSystemEvent('Voice transcription failed: ' + error.message);
+                } finally {                                                                                                                                                           
+                    chatInput.disabled = false;
+                    sendBtn.disabled = false;                                                                                                                                         
+                    recordBtn.disabled = false;                                                                                                                                     
+                    recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';                                                                                                           
+                    recordBtn.style.backgroundColor = '#084298';           
+                    recordBtn.title = 'Start voice recording';                                                                                                                        
+                    isRecording = false;                                                                                                                                              
+                }                       
+            };                                                                                                                                                                        
+                                                                                                                                                                                    
+            mediaRecorder.start();
+            isRecording = true;                                                                                                                                                       
+            recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
+            recordBtn.style.backgroundColor = '#dc3545';                                                                                                                              
+            recordBtn.title = 'Stop recording';                                                                                                                                     
+        } else {                                                                                                                                                                      
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());                                                                                                          
+        }                                                                                                                                                                           
+    } catch (error) {                                                                                                                                                                 
+        addSystemEvent('Could not access microphone: ' + error.message);
+        recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';                                                                                                                       
+        recordBtn.style.backgroundColor = '#084298';                                                                                                                                
+        recordBtn.title = 'Start voice recording';                                                                                                                                    
+        isRecording = false;
+    }                                                                                                                                                                                 
+});
+
+// ----
+//  SCENARIO PANEL
+// ----
+function showScenario(content) {
+    scenarioPlaceholder.style.display = 'none';
+    scenarioPre.style.display = 'block';
+    scenarioPre.textContent = content;
+    editBtn.disabled = false;
+    runBtn.disabled = false;
+    runStatus.style.display = 'inline-block';
+    runStatus.textContent = 'Ready';
+    runStatus.className = 'badge bg-secondary';
+}
+
+// ── Edit mode ──
+editBtn.addEventListener('click', () => {
+    isEditing = true;
+    scenarioEditTA.value = currentScenarioContent;
+    scenarioPre.style.display = 'none';
+    scenarioEditTA.style.display = 'block';
+    editBtn.style.display = 'none';
+    saveEditBtn.style.display = 'inline-block';
+    cancelEditBtn.style.display = 'inline-block';
+    runBtn.disabled = true;
+    autoResizeTA(scenarioEditTA);
+});
+
+cancelEditBtn.addEventListener('click', cancelEdit);
+
+function cancelEdit() {
+    isEditing = false;
+    scenarioPre.style.display = 'block';
+    scenarioEditTA.style.display = 'none';
+    editBtn.style.display = 'inline-block';
+    saveEditBtn.style.display = 'none';
+    cancelEditBtn.style.display = 'none';
+    runBtn.disabled = false;
+}
+
+saveEditBtn.addEventListener('click', async () => {
+    const edited = scenarioEditTA.value;
+    try {
+        const response = await fetch('/chat/edit_scenario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scenario_content: edited,
+                scenario_id: currentScenarioId,
+                output_file: currentOutputFile
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentScenarioContent = edited;
+            currentScenarioId = data.scenario_id;
+            scenarioPre.textContent = edited;
+            saveState();
+            cancelEdit();
+            addSystemEvent('Scenario manually edited and saved.');
+        }
+    } catch (error) {
+        alert('Error saving edit: ' + error.message);
+    }
+});
+
+// ----
+//  RUN SCENARIO
+// ----
+runBtn.addEventListener('click', async () => {
+    if (isEditing) { alert('Please save or cancel your edits first.'); return; }
+    if (!currentOutputFile) return;
+
+    behaveOutput.textContent = '';
+    behaveConsole.style.display = 'flex';
+    stopBtn.disabled = false;
+    stopBtn.style.display = 'inline-block';
+    consoleStatus.textContent = 'Running...';
+    consoleStatus.className = 'badge bg-warning';
+    runBtn.disabled = true;
+    runStatus.textContent = 'Running...';
+    runStatus.className = 'badge bg-warning';
+
+    try {
+        const response = await fetch('/chat/run_scenario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scenario_content: currentScenarioContent,
+                output_file: currentOutputFile
+            })
+        });
+        const data = await response.json();
+
+        if (behaveEventSource) behaveEventSource.close();
+        behaveEventSource = new EventSource(data.stream_url);
+
+        behaveEventSource.onmessage = function(event) {
+            const line = event.data;
+            if (line.startsWith('[COMPLETE:SUCCESS]')) {
+                finishRun('success');
+            } else if (line.startsWith('[COMPLETE:STOPPED]')) {
+                finishRun('stopped');
+            } else if (line.startsWith('[COMPLETE:FAILED:')) {
+                finishRun('failed');
+            } else if (line.startsWith('[ERROR]')) {
+                behaveOutput.textContent += line + '\n';
+                finishRun('failed');
+            } else {
+                behaveOutput.textContent += line + '\n';
+                behaveOutput.scrollTop = behaveOutput.scrollHeight;
+            }
+        };
+
+        behaveEventSource.onerror = function() {
+            consoleStatus.textContent = 'Connection Error';
+            consoleStatus.className = 'badge bg-danger';
+            stopBtn.style.display = 'none';
+            runBtn.disabled = false;
+            behaveEventSource.close();
+        };
+
+    } catch (error) {
+        consoleStatus.textContent = 'Error';
+        consoleStatus.className = 'badge bg-danger';
+        runBtn.disabled = false;
+        alert('Error: ' + error.message);
+    }
+});
+
+function finishRun(status) {
+    const labels = {
+        success: { text: 'Passed ', cls: 'bg-success' },
+        failed:  { text: 'Failed ',  cls: 'bg-danger' },
+        stopped: { text: 'Stopped',   cls: 'bg-warning' }
+    };
+    const { text, cls } = labels[status];
+
+    consoleStatus.textContent = text;
+    consoleStatus.className = `badge ${cls}`;
+    runStatus.textContent = text;
+    runStatus.className = `badge ${cls}`;
+    stopBtn.style.display = 'none';
+    runBtn.disabled = false;
+
+    if (behaveEventSource) behaveEventSource.close();
+    markRunResult(status);
+}
+
+stopBtn.addEventListener('click', async () => {
+    try {
+        const response = await fetch('/stop_behave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            stopBtn.disabled = true;
+            if (behaveEventSource) behaveEventSource.close();
+            finishRun('stopped');
+        }
+    } catch (error) {
+        console.error('Error stopping:', error);
+    }
+});
+
+async function markRunResult(status) {
+    if (!currentScenarioId) return;
+    try {
+        await fetch('/chat/mark_run_result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scenario_id: currentScenarioId, status: status })
+        });
+        const statusText = status === 'success' ? 'completed successfully ' :
+                           status === 'failed'  ? 'failed ' : 'was stopped';
+        addSystemEvent(`Scenario execution ${statusText}.`);
+    } catch (e) {
+        console.error('Error marking run result:', e);
+    }
+}
+
+
+// ----
+//  HELPERS
+// ----
+function addBubble(role, text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `message-wrapper ${role}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = `message-bubble ${role}`;
+    bubble.textContent = text;
+
+    const time = document.createElement('div');
+    time.className = 'message-time';
+    time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    wrapper.appendChild(bubble);
+    wrapper.appendChild(time);
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return wrapper;
+}
+
+function addTypingIndicator() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-wrapper assistant';
+    wrapper.innerHTML = `
+        <div class="message-bubble assistant">
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>`;
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return wrapper;
+}
+
+function addSystemEvent(text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-wrapper system-event';
+    const msg = document.createElement('div');
+    msg.className = 'message-bubble system-event';
+    msg.textContent = text;
+    wrapper.appendChild(msg);
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function saveState() {
+    if (currentScenarioContent) {
+          localStorage.setItem('saduko_scenario_content', currentScenarioContent);
+          localStorage.setItem('saduko_scenario_id', currentScenarioId);
+          localStorage.setItem('saduko_output_file', currentOutputFile);//Store in localStorage teh last scenario generated
+    }
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function autoResizeTA(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+
+chatInput.addEventListener('input', () => autoResize(chatInput));
+scenarioEditTA.addEventListener('input', () => autoResizeTA(scenarioEditTA));
+
+</script>
+</body>
+</html>

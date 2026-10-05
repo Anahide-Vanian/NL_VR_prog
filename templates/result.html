@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Generated - Anah DSL</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .flash-messages { margin-bottom: 20px; }
+        pre { background-color: #f8f9fa; padding: 15px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Natural language robot programming</h1>
+        
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title h5 mb-0">Your original prompt</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-secondary">{{ prompt }}</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="card-title h5 mb-0">Generated scenarios:</h2>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm">Go back</a>
+                    <a href="{{ url_for('validate_scenario', output_file=output_file) }}" class="btn btn-success btn-sm">Run</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <pre>{{ feature_content }}</pre>
+            </div>
+        </div>
+
+        {% if run_behave %}
+        <div class="card mt-4" id="behave-results-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="card-title h5 mb-0">Behave test results</h2>
+                <div>
+                    <button id="stop-btn" class="btn btn-danger btn-sm me-2" style="display: none;">Stop</button>            
+                    <span id="test-status" class="badge bg-secondary">Running...</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <pre id="behave-output" style="min-height: 400px; max-height: 600px; overflow-y: auto; background-color: #d4d4d4; color: #1e1e1e; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; font-size: 16px; line-height: 1.5;"></pre>
+            </div>
+        </div>
+
+        <script>
+            // Auto-scroll to behave results card
+            document.getElementById('behave-results-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Connect to server-sent events stream
+            const eventSource = new EventSource("{{ url_for('stream_behave', output_file=output_file) }}");
+            const outputElement = document.getElementById('behave-output');
+            const statusBadge = document.getElementById('test-status');
+            const stopBtn = document.getElementById('stop-btn');
+
+            // Show stop button when tests are running
+            stopBtn.style.display = 'inline-block';
+
+            // Stop button click handler
+            stopBtn.addEventListener('click', async function() {
+                try {
+                    const response = await fetch('/stop_behave', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        statusBadge.textContent = 'Stopped';
+                        statusBadge.className = 'badge bg-warning';
+                        outputElement.textContent += '\n[Tests stopped by user]\n';
+                        stopBtn.disabled = true;
+                        stopBtn.textContent = 'Stopped';
+                        eventSource.close();
+                    }
+                } catch (error) {
+                    console.error('Error stopping tests:', error);
+                }
+            });
+
+            eventSource.onmessage = function(event) {
+                const data = event.data;
+
+                // Check for completion signals
+                if (data.startsWith('[COMPLETE:SUCCESS]')) {
+                    statusBadge.textContent = 'Passed ✓';
+                    statusBadge.className = 'badge bg-success';
+                    stopBtn.style.display = 'none';
+                    eventSource.close();
+                } else if (data.startsWith('[COMPLETE:STOPPED]')) {
+                    statusBadge.textContent = 'Stopped';
+                    statusBadge.className = 'badge bg-warning';
+                    stopBtn.style.display = 'none';
+                    eventSource.close();
+                } else if (data.startsWith('[COMPLETE:FAILED:')) {
+                    const returnCode = data.match(/\[COMPLETE:FAILED:(\d+)\]/)[1];
+                    statusBadge.textContent = `Failed (code: ${returnCode})`;
+                    statusBadge.className = 'badge bg-danger';
+                    stopBtn.style.display = 'none';
+                    eventSource.close();
+                } else if (data.startsWith('[ERROR]')) {
+                    statusBadge.textContent = 'Error';
+                    statusBadge.className = 'badge bg-danger';
+                    outputElement.textContent += data + '\n';
+                    stopBtn.style.display = 'none';
+                    eventSource.close();
+                } else {
+                    // Append normal output with newline
+                    outputElement.textContent += data + '\n';
+                    // Auto-scroll to bottom
+                    outputElement.scrollTop = outputElement.scrollHeight;
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('EventSource error:', error);
+                statusBadge.textContent = 'Connection Error';
+                statusBadge.className = 'badge bg-danger';
+                stopBtn.style.display = 'none';
+                eventSource.close();
+            };
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

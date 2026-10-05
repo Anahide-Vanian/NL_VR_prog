@@ -1,0 +1,81 @@
+grammar org.xtext.example.mydsl.MyDsl with org.eclipse.xtext.common.Terminals
+
+generate myDsl "http://www.xtext.org/example/mydsl/MyDsl"
+import "http://www.eclipse.org/emf/2002/Ecore" as ecore
+ 
+ 
+Model:
+    ('model' name=ID)
+    (
+    //(modelRefs+=ModelRef)| // Allows importing other models
+    (entities+=EntityDef)|
+    (scenarios+=Scenario)
+    
+    )*;
+    
+/*
+ * ModelRef:
+    'using' modelRef=[Model]; // Cross-reference models by name
+ 
+ */
+ 
+ 
+EntityDef:
+    'entity' name=ID '{'
+        ('actions:' (actions+=ActionDef) (',' actions+=ActionDef)*)?
+        ('states:' (states+=StateDef) (',' states+=StateDef)*)?
+        ('properties:' (properties+=PropertyDef) (',' properties+=PropertyDef)*)?
+    '}';
+    
+ 
+ActionDef: name=ID;
+PropertyDef: name=ID;
+StateDef: name=ID;
+ 
+CompEnum:
+    EQUALTO = 'equal' 'to' | GREATERTHAN = 'greater' 'than' | LESSTHAN = 'less' 'than';
+ 
+ 
+Scenario:
+    'Scenario:' title=STRING
+    	//Given
+    	'Given' stateSteps+= StateStep
+    	('And' stateSteps+= StateStep)*
+    	//When
+		'When' actionSteps+= ActionStep
+    	('And' actionSteps+= ActionStep)*
+    	//Then
+		'Then' stateSteps+= StateStep
+    	('And' stateSteps+= StateStep)*
+		;
+	
+StateStep:
+	 EntityStateStep | PropertyStateStep
+	
+;
+ 
+ 
+EntityStateStep:
+	 'the' entity_stateStep = [EntityDef] name=STRING 'is' state = [StateDef]
+;
+ 
+PropertyStateStep:
+    'the' 'property' property=[PropertyDef] 'of' 'the' entity_PropStateStep=[EntityDef] name=STRING 'is' (comp=CompEnum)? value=ID
+ 
+;
+ 
+ActionStep:
+    prefix=ActionStepPrefix complement=(ComplementActionStep1 | ComplementActionStep2)
+;
+ 
+ActionStepPrefix:
+    'the' entity_ActStep=[EntityDef] name=STRING action=[ActionDef]
+;
+ 
+ComplementActionStep1:
+    'the' entity1=[EntityDef] name1=STRING ('to'|'in'|'from') 'the' entity2=[EntityDef] name2=STRING ('with' value=ID property1=[PropertyDef])?
+;
+ 
+ComplementActionStep2:
+    'to' property=[PropertyDef] value=ID ('with' value2=ID property2=[PropertyDef])?
+;

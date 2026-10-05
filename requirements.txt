@@ -1,0 +1,24 @@
+openai>=1.0.0
+behave>=1.2.6
+flask>=2.0.0
+python-dotenv>=1.0.0
+
+#For mujoco
+numpy
+mujoco
+mujoco-python-viewer
+robot_descriptions>=1.10.0
+
+# For UR robot communication
+ur_rtde
+# rclpy, sensor-msgs, std-msgs come from ROS 2
+
+#for database
+pandas
+
+#for calculations
+transforms3d
+
+#for transcription
+#openai-whisper 
+faster-whisper
